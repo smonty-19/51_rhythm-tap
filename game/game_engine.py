@@ -1,6 +1,7 @@
 import pygame
 import random
 from game.beat import Note, LANES, LANE_KEYS, LANE_LABELS, LANE_COLORS
+from game.sounds import load_hit_sounds  # Task 1: hit sound effects
 
 WIDTH, HEIGHT = 480, 640
 FPS = 60
@@ -11,8 +12,13 @@ LANE_W = WIDTH // LANES
 
 class GameEngine:
     def __init__(self):
+        pygame.mixer.pre_init(44100, -16, 2, 256)  # Task 1: small buffer so hit sounds play with low latency
         pygame.init()
-        pygame.mixer.init()
+        try:  # Task 1: keep the game playable (silently) if no audio device is available
+            pygame.mixer.init()
+        except pygame.error:
+            pass
+        self.hit_sounds = load_hit_sounds()  # Task 1: {"PERFECT"/"GREAT"/"OK": Sound}
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Rhythm Tap")
         self.clock = pygame.time.Clock()
@@ -75,6 +81,9 @@ class GameEngine:
             self.max_combo = max(self.max_combo, self.combo)
             self.score += pts * max(1, self.combo // 5)
             self.feedback.append([grade, col, 40, lane_x, HIT_Y - 30])
+            sound = self.hit_sounds.get(grade)  # Task 1: play the sound for this grade
+            if sound:  # Task 1
+                sound.play()  # Task 1
         else:
             self.combo = 0
             self.feedback.append(["MISS", (220,60,60), 40, lane_x, HIT_Y - 30])

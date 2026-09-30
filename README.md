@@ -49,7 +49,8 @@ rhythm-tap/
 ├── game/
 │   ├── __init__.py
 │   ├── game_engine.py
-│   └── beat.py
+│   ├── beat.py
+│   └── sounds.py        <!-- Task 1: generated hit sound effects -->
 └── README.md
 ```
 
