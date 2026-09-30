@@ -7,6 +7,7 @@ A 4-lane rhythm game — tap the right key as notes reach the hit line.
 ```bash
 pip install -r requirements.txt
 python main.py
+python main.py 140   # Task 3: optional BPM (default 120) - notes spawn on every beat
 ```
 
 ## Controls
@@ -18,6 +19,8 @@ python main.py
 | J | Lane 3 |
 | K | Lane 4 |
 | R | Restart |
+
+<!-- Task 2 --> **Hold notes** (notes with a tail): press the lane key when the head reaches the hit line and keep it held for 1 second until the tail disappears. Letting go early counts as a MISS.
 
 ## Tasks to Complete
 
