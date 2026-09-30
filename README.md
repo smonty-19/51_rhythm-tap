@@ -22,6 +22,8 @@ python main.py 140   # Task 3: optional BPM (default 120) - notes spawn on every
 
 <!-- Task 2 --> **Hold notes** (notes with a tail): press the lane key when the head reaches the hit line and keep it held for 1 second until the tail disappears. Letting go early counts as a MISS.
 
+<!-- Task 4 --> **Game over summary**: after 15 misses the game shows how many PERFECT / GREAT / OK / MISS notes you got and your accuracy, weighted by grade: `(300×PERFECT + 200×GREAT + 100×OK) / (300 × total notes)`.
+
 ## Tasks to Complete
 
 ### Task 1: Sound Effects on Hit

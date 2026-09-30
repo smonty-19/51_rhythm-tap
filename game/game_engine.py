@@ -14,6 +14,8 @@ HOLD_LANE_GAP = 15  # Task 2: extra frames a lane stays blocked after a hold not
 BG = (15, 10, 25)
 LANE_W = WIDTH // LANES
 BPM = 120  # Task 3: default tempo - one note spawns on every beat
+GRADE_POINTS = {"PERFECT": 300, "GREAT": 200, "OK": 100, "MISS": 0}  # Task 4: used to weight accuracy
+GRADE_COLORS = {"PERFECT": (255,220,0), "GREAT": (100,220,100), "OK": (180,180,255), "MISS": (220,60,60)}  # Task 4: same colours as the hit feedback
 SPEEDUP_EVERY_BEATS = 16  # Task 3: difficulty ramp now happens every 4 bars instead of on a frame timer
 
 class GameEngine:
@@ -40,6 +42,7 @@ class GameEngine:
         self.combo = 0
         self.max_combo = 0
         self.misses = 0
+        self.grade_counts = {"PERFECT": 0, "GREAT": 0, "OK": 0}  # Task 4: per-grade hit counts for the summary
         self.next_beat = self.beat_frames  # Task 3: exact (fractional) frame of the next beat; replaces spawn_timer/spawn_interval
         self.beat_count = 0  # Task 3: beats elapsed since the start
         self.beat_flash = 0  # Task 3: frames left on the HUD beat indicator flash
@@ -110,6 +113,7 @@ class GameEngine:
             self.feedback.append(["MISS", (220,60,60), 40, lane_x, HIT_Y - 30])
 
     def score_hit(self, grade, pts, col, lane_x):  # Task 2: shared scoring for taps and completed holds (moved from process_tap)
+        self.grade_counts[grade] += 1  # Task 4: count every scored hit (taps and completed holds)
         self.combo += 1
         self.max_combo = max(self.max_combo, self.combo)
         self.score += pts * max(1, self.combo // 5)
@@ -208,23 +212,57 @@ class GameEngine:
         mi = self.font.render(f"Misses: {self.misses}/15", True, (220,100,100))
         self.screen.blit(sc, (10, 10))
         self.screen.blit(co, (10, 40))
-        self.screen.blit(mi, (WIDTH - 170, 10))
+        self.screen.blit(mi, (WIDTH - mi.get_width() - 10, 10))  # Bug fix: right-align so "Misses: 15/15" isn't cut off (was fixed x = WIDTH - 170)
         bpm = self.font.render(f"BPM: {self.bpm:g}", True, (180,180,220))  # Task 3: show tempo
-        self.screen.blit(bpm, (WIDTH - 170, 40))  # Task 3
+        bpm_x = WIDTH - bpm.get_width() - 10  # Bug fix: right-align BPM to match the misses line
+        self.screen.blit(bpm, (bpm_x, 40))  # Task 3 / Bug fix: uses bpm_x
         dot = (255,255,255) if self.beat_flash else (70,70,90)  # Task 3: indicator flashes on every beat
-        pygame.draw.circle(self.screen, dot, (WIDTH - 192, 55), 6)  # Task 3
+        pygame.draw.circle(self.screen, dot, (bpm_x - 16, 55), 6)  # Task 3 / Bug fix: dot follows the right-aligned BPM text
 
         if self.game_over:
-            ov = pygame.Surface((WIDTH,HEIGHT), pygame.SRCALPHA)
-            ov.fill((0,0,0,160))
-            self.screen.blit(ov,(0,0))
-            msg = self.big_font.render("GAME OVER", True, (220,60,60))
-            sc_msg = self.font.render(f"Final Score: {self.score}  Max Combo: {self.max_combo}x", True, (200,200,200))
-            restart = self.font.render("Press R to Restart", True, (160,160,160))
-            self.screen.blit(msg, (WIDTH//2-msg.get_width()//2, HEIGHT//2-70))
-            self.screen.blit(sc_msg, (WIDTH//2-sc_msg.get_width()//2, HEIGHT//2))
-            self.screen.blit(restart, (WIDTH//2-restart.get_width()//2, HEIGHT//2+50))
+            self.draw_summary()  # Task 4: grade summary screen replaces the old one-line game over text
         pygame.display.flip()
+
+    def accuracy(self):  # Task 4: points earned / max possible points over every judged note, as a %
+        counts = dict(self.grade_counts, MISS=self.misses)  # Task 4
+        total = sum(counts.values())  # Task 4
+        if total == 0:  # Task 4
+            return 0.0  # Task 4
+        earned = sum(GRADE_POINTS[g] * n for g, n in counts.items())  # Task 4
+        return 100 * earned / (GRADE_POINTS["PERFECT"] * total)  # Task 4
+
+    def draw_summary(self):  # Task 4: after game over, show PERFECT/GREAT/OK/MISS counts and accuracy
+        ov = pygame.Surface((WIDTH,HEIGHT), pygame.SRCALPHA)
+        ov.fill((0,0,0,200))  # Task 4: darker overlay so the table is readable (was 160)
+        self.screen.blit(ov,(0,0))
+        def center(surf, y):  # Task 4
+            self.screen.blit(surf, (WIDTH//2 - surf.get_width()//2, y))  # Task 4
+        center(self.big_font.render("GAME OVER", True, (220,60,60)), 90)  # Task 4: moved up to make room
+        center(self.font.render("GRADE SUMMARY", True, (160,160,190)), 160)  # Task 4
+
+        counts = dict(self.grade_counts, MISS=self.misses)  # Task 4
+        total = max(1, sum(counts.values()))  # Task 4
+        left, right, bar_w = 110, WIDTH - 110, 80  # Task 4: label column, count column, proportion bar width
+        for i, grade in enumerate(("PERFECT", "GREAT", "OK", "MISS")):  # Task 4: one row per grade
+            y = 210 + i * 38  # Task 4
+            col = GRADE_COLORS[grade]  # Task 4
+            self.screen.blit(self.font.render(grade, True, col), (left, y))  # Task 4
+            cnt = self.font.render(str(counts[grade]), True, (230,230,230))  # Task 4
+            self.screen.blit(cnt, (right - cnt.get_width(), y))  # Task 4: right-aligned count
+            bar_x = right - bar_w - 45  # Task 4: small bar showing this grade's share of all notes
+            pygame.draw.rect(self.screen, (50,50,70), (bar_x, y + 9, bar_w, 12), border_radius=4)  # Task 4
+            fill = int(bar_w * counts[grade] / total)  # Task 4
+            if fill:  # Task 4
+                pygame.draw.rect(self.screen, col, (bar_x, y + 9, fill, 12), border_radius=4)  # Task 4
+
+        pygame.draw.line(self.screen, (80,80,100), (left, 368), (right, 368), 2)  # Task 4
+        acc = self.accuracy()  # Task 4
+        acc_col = (100,220,100) if acc >= 90 else (255,220,80) if acc >= 70 else (220,100,100)  # Task 4
+        center(self.big_font.render(f"{acc:.1f}%", True, acc_col), 385)  # Task 4
+        center(self.font.render("ACCURACY", True, (160,160,190)), 435)  # Task 4
+        center(self.font.render(f"Final Score: {self.score}", True, (200,200,200)), 485)  # Task 4: split from max combo - the old single line overflowed the 480px window
+        center(self.font.render(f"Max Combo: {self.max_combo}x", True, (200,200,200)), 515)  # Task 4
+        center(self.font.render("Press R to Restart", True, (160,160,160)), 575)  # Task 4: moved down to fit the table
 
     def run(self):
         running = True
